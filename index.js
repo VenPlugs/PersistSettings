@@ -23,6 +23,7 @@ module.exports = class PersistFavourites extends Plugin {
     this.storage = await getModule(["ObjectStorage"]);
     this.gifs = await getModule(["getFavorites", "getRandomFavorite"]);
     this.emotes = await getModule(["getGuildEmoji"]);
+    this.users = await getModule(["getCurrentUser"]);
 
     FluxDispatcher.subscribe("CONNECTION_OPEN", this.restore);
     FluxDispatcher.subscribe("GIF_FAVORITE_ADD", this.backupGifs);
@@ -43,6 +44,10 @@ module.exports = class PersistFavourites extends Plugin {
     FluxDispatcher.unsubscribe("EMOJI_TRACK_USAGE", this.backupEmotesMaybe);
   }
 
+  get emojiKey() {
+    return `emotes-${this.users.getCurrentUser().id}`;
+  }
+
   backupGifs() {
     const favs = this.gifs.getFavorites();
     this.settings.set("gifs", favs);
@@ -54,7 +59,7 @@ module.exports = class PersistFavourites extends Plugin {
 
   backupEmotes() {
     const emotes = this.emotes.getState();
-    this.settings.set("emotes", emotes);
+    this.settings.set(this.emojiKey, emotes);
   }
 
   restore() {
@@ -66,7 +71,7 @@ module.exports = class PersistFavourites extends Plugin {
     const emotes = this.emotes.getState();
     if (emotes.favorites.length || emotes.usageHistory.length) return;
 
-    const backup = this.settings.get("emotes", null);
+    const backup = this.settings.get(this.emojiKey, null);
     if (!backup) return;
 
     const store = {
