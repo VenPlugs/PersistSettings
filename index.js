@@ -51,7 +51,7 @@ module.exports = class PersistFavourites extends Plugin {
   backupGifs() {
     const favs = this.gifs.getFavorites();
     this.settings.set("gifs", favs);
-    this.info("Successfully backed up your gifs!");
+    this.log("Successfully backed up your gifs!");
   }
 
   backupEmotesMaybe() {
@@ -61,7 +61,7 @@ module.exports = class PersistFavourites extends Plugin {
   backupEmotes() {
     const emotes = this.emotes.getState();
     this.settings.set(this.emojiKey, emotes);
-    this.info("Successfully backed up your emotes!");
+    this.log("Successfully backed up your emotes!");
   }
 
   restore() {
@@ -84,7 +84,7 @@ module.exports = class PersistFavourites extends Plugin {
 
     this.storage.impl.set("EmojiStore", store);
     this.emotes.initialize(store._state);
-    this.info("Successfully restored your emotes!");
+    this.log("Successfully restored your emotes!");
   }
 
   restoreGifs() {
@@ -103,6 +103,6 @@ module.exports = class PersistFavourites extends Plugin {
 
     this.storage.impl.set("GIFFavoritesStore", store);
     this.gifs.initialize(store._state);
-    this.info("Successfully restored your gifs!");
+    this.log("Successfully restored your gifs!");
   }
 };
