@@ -51,6 +51,7 @@ module.exports = class PersistFavourites extends Plugin {
   backupGifs() {
     const favs = this.gifs.getFavorites();
     this.settings.set("gifs", favs);
+    this.info("Successfully backed up your gifs!");
   }
 
   backupEmotesMaybe() {
@@ -60,6 +61,7 @@ module.exports = class PersistFavourites extends Plugin {
   backupEmotes() {
     const emotes = this.emotes.getState();
     this.settings.set(this.emojiKey, emotes);
+    this.info("Successfully backed up your emotes!");
   }
 
   restore() {
@@ -69,10 +71,11 @@ module.exports = class PersistFavourites extends Plugin {
 
   restoreEmotes() {
     const emotes = this.emotes.getState();
-    if (emotes.favorites.length || emotes.usageHistory.length) return;
-
     const backup = this.settings.get(this.emojiKey, null);
-    if (!backup) return;
+    if (emotes.favorites.length || emotes.usageHistory.length) {
+      if (!backup) this.backupEmotes();
+      return;
+    } else if (!backup) return;
 
     const store = {
       _version: 1,
@@ -81,6 +84,7 @@ module.exports = class PersistFavourites extends Plugin {
 
     this.storage.impl.set("EmojiStore", store);
     this.emotes.initialize(store._state);
+    this.info("Successfully restored your emotes!");
   }
 
   restoreGifs() {
@@ -99,5 +103,6 @@ module.exports = class PersistFavourites extends Plugin {
 
     this.storage.impl.set("GIFFavoritesStore", store);
     this.gifs.initialize(store._state);
+    this.info("Successfully restored your gifs!");
   }
 };
