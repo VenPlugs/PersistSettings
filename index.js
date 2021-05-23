@@ -31,8 +31,6 @@ module.exports = class PersistFavourites extends Plugin {
     FluxDispatcher.subscribe("EMOJI_FAVORITE", this.backupEmotes);
     FluxDispatcher.subscribe("EMOJI_UNFAVORITE", this.backupEmotes);
     FluxDispatcher.subscribe("EMOJI_TRACK_USAGE", this.backupEmotesMaybe);
-
-    this.restore();
   }
 
   pluginWillUnload() {
@@ -44,8 +42,14 @@ module.exports = class PersistFavourites extends Plugin {
     FluxDispatcher.unsubscribe("EMOJI_TRACK_USAGE", this.backupEmotesMaybe);
   }
 
-  get emojiKey() {
-    return `emotes-${this.users.getCurrentUser().id}`;
+  async getEmojiKey() {
+    let id;
+    do {
+      const user = this.users.getCurrentUser();
+      if (!user) await new Promise(r => setTimeout(r, 1000));
+      else id = user.id;
+    } while (!id);
+    return `emotes-${id}`;
   }
 
   backupGifs() {
@@ -58,9 +62,9 @@ module.exports = class PersistFavourites extends Plugin {
     if (Math.random() > 0.9) this.backupEmotes();
   }
 
-  backupEmotes() {
+  async backupEmotes() {
     const emotes = this.emotes.getState();
-    this.settings.set(this.emojiKey, emotes);
+    this.settings.set(await this.getEmojiKey(), emotes);
     this.log("Successfully backed up your emotes!");
   }
 
@@ -69,22 +73,46 @@ module.exports = class PersistFavourites extends Plugin {
     this.restoreGifs();
   }
 
-  restoreEmotes() {
+  async restoreEmotes() {
     const emotes = this.emotes.getState();
-    const backup = this.settings.get(this.emojiKey, null);
-    if (emotes.favorites.length || emotes.usageHistory.length) {
-      if (!backup) this.backupEmotes();
-      return;
-    } else if (!backup) return;
+    const backup = this.settings.get(await this.getEmojiKey(), null);
 
-    const store = {
-      _version: 1,
-      _state: backup
+    const restore = () => {
+      const store = {
+        _version: 1,
+        _state: backup
+      };
+
+      this.storage.impl.set("EmojiStore", store);
+      this.emotes.initialize(store._state);
+      this.log("Successfully restored your emotes!");
     };
 
-    this.storage.impl.set("EmojiStore", store);
-    this.emotes.initialize(store._state);
-    this.log("Successfully restored your emotes!");
+    if (emotes.favorites.length || emotes.usageHistory.length) {
+      if (!backup) return void this.backupEmotes();
+
+      if (
+        !(backup.favorites.length >= emotes.favorites.length && emotes.favorites.every(f => backup.favorites.includes(f))) ||
+        !Object.keys(emotes.usageHistory).every(k => backup.usageHistory.hasOwnProperty(k))
+      ) {
+        return void powercord.api.notices.sendToast("persist-favourites-" + Math.random().toString(16), {
+          header: "PersistFavourites",
+          content: "Local Emotes and Backup conflict",
+          buttons: [
+            {
+              text: "Restore Backup",
+              onClick: () => restore()
+            },
+            {
+              text: "Override Backup",
+              onClick: () => void this.backupEmotes()
+            }
+          ]
+        });
+      }
+    }
+
+    if (backup) restore();
   }
 
   restoreGifs() {
