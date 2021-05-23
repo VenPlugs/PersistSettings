@@ -101,7 +101,7 @@ module.exports = class PersistFavourites extends Plugin {
       ) {
         return void powercord.api.notices.sendToast("persist-favourites-" + Math.random().toString(16), {
           header: "PersistFavourites",
-          content: "Local Emotes and Backup conflict",
+          content: "Local Emote Data and Backup are in conflict. Please review which one you would like to keep and choose one of the options below.",
           buttons: [
             {
               text: "Restore Backup",
