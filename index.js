@@ -30,7 +30,7 @@ module.exports = class PersistFavourites extends Plugin {
     FluxDispatcher.subscribe("GIF_FAVORITE_REMOVE", this.backupGifs);
     FluxDispatcher.subscribe("EMOJI_FAVORITE", this.backupEmotes);
     FluxDispatcher.subscribe("EMOJI_UNFAVORITE", this.backupEmotes);
-    FluxDispatcher.subscribe("EMOJI_TRACK_USAGE", this.backupEmotesMaybe);
+    FluxDispatcher.subscribe("EMOJI_TRACK_USAGE", this.backupEmotes);
 
     // Sometimes CONNECTION_OPEN will fire, other times not soooo lets just do this hack teehee
     setTimeout(() => this.didRestore || this.restore(), 1000 * 10);
