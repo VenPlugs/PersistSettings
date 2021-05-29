@@ -1,3 +1,11 @@
+/* PersistFavourites, a powercord plugin to make sure you never lose your favourites again!
+ * Copyright (C) 2021 Vendicated
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 const { Plugin } = require("powercord/entities");
 const { getModule, FluxDispatcher } = require("powercord/webpack");
 
@@ -8,6 +16,19 @@ function unique(arr, fn) {
     const key = fn?.(item) ?? item;
     return seen(key) ? false : (hist[key] = true);
   });
+}
+
+function removeOverlaps(obj1, obj2) {
+  const one = Object.keys(obj1).reduce((acc, curr) => {
+    if (!obj2.hasOwnProperty(curr)) acc[curr] = obj1[curr];
+    return acc;
+  }, {});
+  const two = Object.keys(obj2).reduce((acc, curr) => {
+    if (!obj1.hasOwnProperty(curr)) acc[curr] = obj2[curr];
+    return acc;
+  }, {});
+
+  return [one, two];
 }
 
 module.exports = class PersistFavourites extends Plugin {
