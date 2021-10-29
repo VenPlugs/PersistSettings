@@ -37,6 +37,7 @@ module.exports = class PersistFavourites extends Plugin {
     this.restore = this.restore.bind(this);
     this.backupGifs = this.backupGifs.bind(this);
     this.backupEmotes = this.backupEmotes.bind(this);
+    this.backupKeybinds = this.backupKeybinds.bind(this);
     this.backupEmotesMaybe = this.backupEmotesMaybe.bind(this);
   }
 
@@ -44,7 +45,8 @@ module.exports = class PersistFavourites extends Plugin {
     this.storage = await getModule(["ObjectStorage"]);
     this.gifs = await getModule(["getFavorites", "getRandomFavorite"]);
     this.emotes = await getModule(["getGuildEmoji"]);
-    this.users = await getModule(["getCurrentUser"]);
+    this.users = await getModule(["getNullableCurrentUser"]);
+    this.keybinds = await getModule(["hasKeybind"]);
 
     FluxDispatcher.subscribe("CONNECTION_OPEN", this.restore);
     FluxDispatcher.subscribe("GIF_FAVORITE_ADD", this.backupGifs);
@@ -52,6 +54,11 @@ module.exports = class PersistFavourites extends Plugin {
     FluxDispatcher.subscribe("EMOJI_FAVORITE", this.backupEmotes);
     FluxDispatcher.subscribe("EMOJI_UNFAVORITE", this.backupEmotes);
     FluxDispatcher.subscribe("EMOJI_TRACK_USAGE", this.backupEmotes);
+    FluxDispatcher.subscribe("KEYBINDS_ADD_KEYBIND", this.backupKeybinds);
+    FluxDispatcher.subscribe("KEYBINDS_DELETE_KEYBIND", this.backupKeybinds);
+    FluxDispatcher.subscribe("KEYBINDS_ENABLE_ALL_KEYBINDS", this.backupKeybinds);
+    FluxDispatcher.subscribe("KEYBINDS_SET_KEYBIND", this.backupKeybinds);
+
 
     // Sometimes CONNECTION_OPEN will fire, other times not soooo lets just do this hack teehee
     setTimeout(() => this.didRestore || this.restore(), 1000 * 10);
@@ -82,8 +89,15 @@ module.exports = class PersistFavourites extends Plugin {
     this.log("Successfully backed up your gifs!");
   }
 
+  backupKeybinds() {
+    const keybinds = this.keybinds.getState();
+    this.settings.set("keybinds", keybinds);
+    this.log("Successfully backed up your keybinds!");
+  }
+
   backupEmotesMaybe() {
     if (Math.random() > 0.9) this.backupEmotes();
+    this.log("Successfully backed up your emotes!");
   }
 
   async backupEmotes() {
@@ -96,6 +110,7 @@ module.exports = class PersistFavourites extends Plugin {
     this.didRestore = true;
     this.restoreEmotes();
     this.restoreGifs();
+    this.restoreKeybinds();
   }
 
   async restoreEmotes() {
@@ -157,5 +172,20 @@ module.exports = class PersistFavourites extends Plugin {
     this.storage.impl.set("GIFFavoritesStore", store);
     this.gifs.initialize(store._state);
     this.log("Successfully restored your gifs!");
+  }
+
+  restoreKeybinds() {
+    const backup = this.settings.get("keybinds", null);
+    if (!backup) return void this.backupKeybinds();
+
+    const store = {
+      _version: 2,
+      _state: {
+        backup
+      }
+    };
+
+    this.storage.impl.set("keybinds", store);
+    this.keybinds.initialize(store._state);
   }
 };
