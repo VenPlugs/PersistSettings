@@ -39,6 +39,7 @@ module.exports = class PersistFavourites extends Plugin {
     this.backupVoice = this.backupVoice.bind(this);
     this.backupEmotes = this.backupEmotes.bind(this);
     this.backupKeybinds = this.backupKeybinds.bind(this);
+    this.backupSettings = this.backupSettings.bind(this);
     this.backupEmotesMaybe = this.backupEmotesMaybe.bind(this);
     this.backupAccessibility = this.backupAccessibility.bind(this);
   }
