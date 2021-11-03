@@ -36,15 +36,22 @@ module.exports = class PersistFavourites extends Plugin {
     super(...args);
     this.restore = this.restore.bind(this);
     this.backupGifs = this.backupGifs.bind(this);
+    this.backupVoice = this.backupVoice.bind(this);
     this.backupEmotes = this.backupEmotes.bind(this);
+    this.backupKeybinds = this.backupKeybinds.bind(this);
+    this.backupSettings = this.backupSettings.bind(this);
     this.backupEmotesMaybe = this.backupEmotesMaybe.bind(this);
+    this.backupAccessibility = this.backupAccessibility.bind(this);
   }
 
   async startPlugin() {
-    this.storage = await getModule(["ObjectStorage"]);
     this.gifs = await getModule(["getFavorites", "getRandomFavorite"]);
+    this.users = await getModule(["getNullableCurrentUser"]);
+    this.accessibility = await getModule(["isZoomedIn"]);
+    this.storage = await getModule(["ObjectStorage"]);
     this.emotes = await getModule(["getGuildEmoji"]);
-    this.users = await getModule(["getCurrentUser"]);
+    this.keybinds = await getModule(["hasKeybind"]);
+    this.voice = await getModule(["isDeaf"]);
 
     FluxDispatcher.subscribe("CONNECTION_OPEN", this.restore);
     FluxDispatcher.subscribe("GIF_FAVORITE_ADD", this.backupGifs);
@@ -52,6 +59,11 @@ module.exports = class PersistFavourites extends Plugin {
     FluxDispatcher.subscribe("EMOJI_FAVORITE", this.backupEmotes);
     FluxDispatcher.subscribe("EMOJI_UNFAVORITE", this.backupEmotes);
     FluxDispatcher.subscribe("EMOJI_TRACK_USAGE", this.backupEmotes);
+    FluxDispatcher.subscribe("KEYBINDS_ADD_KEYBIND", this.backupKeybinds);
+    FluxDispatcher.subscribe("KEYBINDS_DELETE_KEYBIND", this.backupKeybinds);
+    FluxDispatcher.subscribe("KEYBINDS_ENABLE_ALL_KEYBINDS", this.backupKeybinds);
+    FluxDispatcher.subscribe("KEYBINDS_SET_KEYBIND", this.backupKeybinds);
+    FluxDispatcher.subscribe("USER_SETTINGS_UPDATE", this.backupSettings);
 
     // Sometimes CONNECTION_OPEN will fire, other times not soooo lets just do this hack teehee
     setTimeout(() => this.didRestore || this.restore(), 1000 * 10);
@@ -64,6 +76,11 @@ module.exports = class PersistFavourites extends Plugin {
     FluxDispatcher.unsubscribe("EMOJI_FAVORITE", this.backupEmotes);
     FluxDispatcher.unsubscribe("EMOJI_UNFAVORITE", this.backupEmotes);
     FluxDispatcher.unsubscribe("EMOJI_TRACK_USAGE", this.backupEmotesMaybe);
+    FluxDispatcher.unsubscribe("KEYBINDS_ADD_KEYBIND", this.backupKeybinds);
+    FluxDispatcher.unsubscribe("KEYBINDS_DELETE_KEYBIND", this.backupKeybinds);
+    FluxDispatcher.unsubscribe("KEYBINDS_ENABLE_ALL_KEYBINDS", this.backupKeybinds);
+    FluxDispatcher.unsubscribe("KEYBINDS_SET_KEYBIND", this.backupKeybinds);
+    FluxDispatcher.unsubscribe("USER_SETTINGS_UPDATE", this.backupSettings);
   }
 
   async getEmojiKey() {
@@ -82,8 +99,33 @@ module.exports = class PersistFavourites extends Plugin {
     this.log("Successfully backed up your gifs!");
   }
 
+  backupKeybinds() {
+    const keybinds = this.keybinds.getState();
+    this.settings.set("keybinds", keybinds);
+    this.log("Successfully backed up your keybinds!");
+  }
+
+  backupAccessibility() {
+    const accessibility = this.accessibility.getState();
+    this.settings.set("accessibility", accessibility);
+    this.log("Successfully backed up your accessibility settings!");
+  }
+
+  backupVoice() {
+    const voice = this.voice.getState()?.settingsByContext;
+    this.settings.set("voice", voice);
+    this.log("Successfully backed up your voice & video settings!");
+  }
+
+  backupSettings() {
+    this.backupVoice();
+    this.backupKeybinds();
+    this.backupAccessibility();
+  }
+
   backupEmotesMaybe() {
     if (Math.random() > 0.9) this.backupEmotes();
+    this.log("Successfully backed up your emotes!");
   }
 
   async backupEmotes() {
@@ -94,8 +136,11 @@ module.exports = class PersistFavourites extends Plugin {
 
   restore() {
     this.didRestore = true;
-    this.restoreEmotes();
     this.restoreGifs();
+    this.restoreVoice();
+    this.restoreEmotes();
+    this.restoreKeybinds();
+    this.restoreAccessibility();
   }
 
   async restoreEmotes() {
@@ -157,5 +202,42 @@ module.exports = class PersistFavourites extends Plugin {
     this.storage.impl.set("GIFFavoritesStore", store);
     this.gifs.initialize(store._state);
     this.log("Successfully restored your gifs!");
+  }
+
+  restoreKeybinds() {
+    const backup = this.settings.get("keybinds", null);
+    if (!backup) return void this.backupKeybinds();
+
+    const store = {
+      _version: 2,
+      _state: backup
+    };
+
+    this.storage.impl.set("keybinds", store);
+    this.keybinds.initialize(store._state);
+    this.log("Successfully restored your keybinds!");
+  }
+
+  restoreVoice() {
+    const backup = this.settings.get("voice", null);
+    if (!backup) return void this.backupVoice();
+
+    this.storage.impl.set("MediaEngineStore", backup);
+    this.voice.initialize(backup);
+    this.log("Successfully restored your voice & video settings!");
+  }
+
+  restoreAccessibility() {
+    const backup = this.settings.get("accessibility", null);
+    if (!backup) return void this.backupAccessibility();
+
+    const store = {
+      _version: 7,
+      _state: backup
+    };
+
+    this.storage.impl.set("AccessibilityStore", store);
+    this.accessibility.initialize(store._state);
+    this.log("Successfully restored your accessibility settings!");
   }
 };
