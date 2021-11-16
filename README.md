@@ -1,4 +1,4 @@
-# Persist Settings
+# Persist Settings (formerly PersistFavourites)
 
 This plugin solves the problem of Discord randomly deciding to clear your settings
 by backing them up regularly and restoring them when needed.
