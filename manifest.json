@@ -1,7 +1,7 @@
 {
-  "name": "Persist Favourites",
-  "version": "1.0.3",
-  "description": "Backs up your favourite and recently used gifs/emotes and restores them in case discord clears them after logouts or for other reasons",
+  "name": "Persist Settings",
+  "version": "2.0.0",
+  "description": "Backs up your settings and restores them in case discord clears them after logouts or for other reasons",
   "author": "Vendicated",
   "license": "Apache-2.0"
 }
