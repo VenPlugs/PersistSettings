@@ -34,6 +34,15 @@ const VoiceEvents = [
   "AUDIO_SET_OUTPUT_VOLUME"
 ];
 
+const NotificationEvents = [
+  "NOTIFICATIONS_SET_PERMISSION_STATE",
+  "NOTIFICATIONS_SET_DESKTOP_TYPE",
+  "NOTIFICATIONS_SET_DISABLE_UNREAD_BADGE",
+  "NOTIFICATIONS_SET_TASKBAR_FLASH",
+  "NOTIFICATIONS_SET_TTS_TYPE",
+  "NOTIFICATIONS_SET_DISABLED_SOUNDS"
+];
+
 module.exports = class PersistSettings extends Plugin {
   constructor(...args) {
     super(...args);
@@ -42,9 +51,11 @@ module.exports = class PersistSettings extends Plugin {
     this.backupKeybinds = this.backupKeybinds.bind(this);
     this.backupSettings = this.backupSettings.bind(this);
     this.backupAccessibility = this.backupAccessibility.bind(this);
+    this.backupNotifications = this.backupNotifications.bind(this);
   }
 
   async startPlugin() {
+    this.notifications = await getModule(["getDesktopType"]);
     this.accessibility = await getModule(["isZoomedIn"]);
     this.storage = await getModule(["ObjectStorage"]);
     this.keybinds = await getModule(["hasKeybind"]);
@@ -63,6 +74,10 @@ module.exports = class PersistSettings extends Plugin {
 
     for (const event of VoiceEvents) {
       FluxDispatcher.subscribe(event, this.backupVoice);
+    }
+
+    for (const event of NotificationEvents) {
+      FluxDispatcher.subscribe(event, this.backupNotifications);
     }
 
     // Sometimes CONNECTION_OPEN will fire, other times not soooo lets just do this hack teehee
@@ -84,6 +99,10 @@ module.exports = class PersistSettings extends Plugin {
     for (const event of VoiceEvents) {
       FluxDispatcher.unsubscribe(event, this.backupVoice);
     }
+
+    for (const event of NotificationEvents) {
+      FluxDispatcher.unsubscribe(event, this.backupNotifications);
+    }
   }
 
   backupKeybinds() {
@@ -96,6 +115,11 @@ module.exports = class PersistSettings extends Plugin {
     this.settings.set("accessibility", accessibility);
   }
 
+  backupNotifications() {
+    const notifications = this.notifications.getState();
+    this.settings.set("notifications", notifications);
+  }
+
   backupVoice() {
     const voice = this.voice.getState()?.settingsByContext;
     this.settings.set("voice", voice);
@@ -105,6 +129,7 @@ module.exports = class PersistSettings extends Plugin {
     this.backupVoice();
     this.backupKeybinds();
     this.backupAccessibility();
+    this.backupNotifications();
   }
 
   restore() {
@@ -112,6 +137,7 @@ module.exports = class PersistSettings extends Plugin {
     this.restoreVoice();
     this.restoreKeybinds();
     this.restoreAccessibility();
+    this.restoreNotifications();
   }
 
   restoreKeybinds() {
@@ -147,5 +173,18 @@ module.exports = class PersistSettings extends Plugin {
 
     this.storage.impl.set("AccessibilityStore", store);
     this.accessibility.initialize(store._state);
+  }
+
+  restoreNotifications() {
+    const backup = this.settings.get("notifications", null);
+    if (!backup) return void this.backupNotifications();
+
+    const store = {
+      _version: 1,
+      _state: backup
+    };
+
+    this.storage.impl.set("notifications", store);
+    this.notifications.initialize(store._state);
   }
 };
