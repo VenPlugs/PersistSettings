@@ -52,11 +52,13 @@ module.exports = class PersistSettings extends Plugin {
     this.backupVoice = this.backupVoice.bind(this);
     this.backupKeybinds = this.backupKeybinds.bind(this);
     this.backupSettings = this.backupSettings.bind(this);
+    this.backupExperiments = this.backupExperiments.bind(this);
     this.backupAccessibility = this.backupAccessibility.bind(this);
     this.backupNotifications = this.backupNotifications.bind(this);
   }
 
   async startPlugin() {
+    this.experiments = await getModule(["hasRegisteredExperiment"]);
     this.notifications = await getModule(["getDesktopType"]);
     this.accessibility = await getModule(["isZoomedIn"]);
     this.storage = await getModule(["ObjectStorage"]);
@@ -65,10 +67,11 @@ module.exports = class PersistSettings extends Plugin {
 
     FluxDispatcher.subscribe("CONNECTION_OPEN", this.restore);
     FluxDispatcher.subscribe("KEYBINDS_ADD_KEYBIND", this.backupKeybinds);
-    FluxDispatcher.subscribe("KEYBINDS_DELETE_KEYBIND", this.backupKeybinds);
-    FluxDispatcher.subscribe("KEYBINDS_ENABLE_ALL_KEYBINDS", this.backupKeybinds);
     FluxDispatcher.subscribe("KEYBINDS_SET_KEYBIND", this.backupKeybinds);
     FluxDispatcher.subscribe("USER_SETTINGS_UPDATE", this.backupSettings);
+    FluxDispatcher.subscribe("KEYBINDS_DELETE_KEYBIND", this.backupKeybinds);
+    FluxDispatcher.subscribe("KEYBINDS_ENABLE_ALL_KEYBINDS", this.backupKeybinds);
+    FluxDispatcher.subscribe("EXPERIMENT_OVERRIDE_BUCKET", this.backupExperiments);
 
     for (const event of AccessiblityEvents) {
       FluxDispatcher.subscribe(event, this.backupAccessibility);
@@ -89,10 +92,11 @@ module.exports = class PersistSettings extends Plugin {
   pluginWillUnload() {
     FluxDispatcher.unsubscribe("CONNECTION_OPEN", this.restore);
     FluxDispatcher.unsubscribe("KEYBINDS_ADD_KEYBIND", this.backupKeybinds);
-    FluxDispatcher.unsubscribe("KEYBINDS_DELETE_KEYBIND", this.backupKeybinds);
-    FluxDispatcher.unsubscribe("KEYBINDS_ENABLE_ALL_KEYBINDS", this.backupKeybinds);
     FluxDispatcher.unsubscribe("KEYBINDS_SET_KEYBIND", this.backupKeybinds);
     FluxDispatcher.unsubscribe("USER_SETTINGS_UPDATE", this.backupSettings);
+    FluxDispatcher.unsubscribe("KEYBINDS_DELETE_KEYBIND", this.backupKeybinds);
+    FluxDispatcher.unsubscribe("KEYBINDS_ENABLE_ALL_KEYBINDS", this.backupKeybinds);
+    FluxDispatcher.unsubscribe("EXPERIMENT_OVERRIDE_BUCKET", this.backupExperiments);
 
     for (const event of AccessiblityEvents) {
       FluxDispatcher.unsubscribe(event, this.backupAccessibility);
@@ -122,6 +126,11 @@ module.exports = class PersistSettings extends Plugin {
     this.settings.set("notifications", notifications);
   }
 
+  backupExperiments() {
+    const experiments = this.experiments.getSerializedState()?.experimentOverrides;
+    this.settings.set("experiments", experiments);
+  }
+
   backupVoice() {
     const voice = this.voice.getState()?.settingsByContext;
     this.settings.set("voice", voice);
@@ -130,6 +139,7 @@ module.exports = class PersistSettings extends Plugin {
   backupSettings() {
     this.backupVoice();
     this.backupKeybinds();
+    this.backupExperiments();
     this.backupAccessibility();
     this.backupNotifications();
   }
@@ -138,6 +148,7 @@ module.exports = class PersistSettings extends Plugin {
     this.didRestore = true;
     this.restoreVoice();
     this.restoreKeybinds();
+    this.restoreExperiments();
     this.restoreAccessibility();
     this.restoreNotifications();
   }
@@ -155,13 +166,21 @@ module.exports = class PersistSettings extends Plugin {
     this.keybinds.initialize(store._state);
   }
 
+  restoreExperiments() {
+    const backup = this.settings.get("experiments", null);
+    if (!backup) return void this.backupExperiments();
+
+    // what the fuck discord...? you can't even spell experiments??
+    this.storage.impl.set("exerimentOverrides", backup);
+    this.experiments.initialize(backup);
+  }
+
   restoreVoice() {
     const backup = this.settings.get("voice", null);
     if (!backup) return void this.backupVoice();
 
     this.storage.impl.set("MediaEngineStore", backup);
     this.voice.initialize(backup);
-
   }
 
   restoreAccessibility() {
